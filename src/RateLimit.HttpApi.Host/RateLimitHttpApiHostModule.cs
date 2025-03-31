@@ -65,17 +65,28 @@ public class RateLimitHttpApiHostModule : AbpModule
 
     private void ConfigureRateLimit(ServiceConfigurationContext context, IConfiguration configuration)
     {
-        Configure<RateLimitOptions>(options =>
-        {
-            context.Services.GetConfiguration().GetSection("RateLimit").Bind(options);
-            if (options.RequestsPerMinute <= 0)
-            {
-                throw new AbpInitializationException("RequestsPerMinute must be greater than 0 in RateLimit configuration.");
-            }
-        });
+        // Configure RateLimitOptions from appsettings.json
+        Configure<RateLimitOptions>(configuration.GetSection("RateLimit"));
 
+        // Configure Redis services
+        var redisConfig = configuration.GetSection("Redis");
+        if (redisConfig["IsEnabled"]?.ToLower() == "true")
+        {
+            var redisConnectionString = redisConfig["Configuration"] ?? "127.0.0.1:247";
+
+            // Register IConnectionMultiplexer as a singleton
+            context.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+                ConnectionMultiplexer.Connect(redisConnectionString));
+
+            // Configure IDistributedCache to use Redis
+            context.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+            });
+        }
+
+        // Register the middleware
         context.Services.AddTransient<RateLimitMiddleware>();
-        context.Services.AddMemoryCache();
     }
 
     private void ConfigureCache(IConfiguration configuration)

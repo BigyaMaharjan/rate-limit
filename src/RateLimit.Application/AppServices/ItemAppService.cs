@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RateLimit.Entities;
+using RateLimit.ETOs;
 using RateLimit.Interfaces;
 using RateLimit.Interfaces.Dtos;
 using RateLimit.MessageCodes;
@@ -11,13 +12,16 @@ using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
+using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.ObjectMapping;
 
 namespace RateLimit.AppServices;
+
 public class ItemAppService(
     IRepository<Item, Guid> itemRepository,
     ILogger<ItemAppService> logger,
-    IObjectMapper objectMapper) : ApplicationService, IItemAppService
+    IObjectMapper objectMapper,
+    IDistributedEventBus eventBus) : ApplicationService, IItemAppService
 {
     public async Task<ResponseModel<CreateItemResponseDto>> CreateAsync(CreateUpdateItemDto input)
     {
@@ -64,7 +68,6 @@ public class ItemAppService(
             logger.LogError(ex, "ItemAppService - Internal server error in CreateAsync.");
             throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
         }
-
     }
 
     public async Task<ResponseModel> DeleteAsync(Guid id)
@@ -101,7 +104,6 @@ public class ItemAppService(
             logger.LogError(ex, "ItemAppService - Internal server error in DeleteAsync.");
             throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
         }
-
     }
 
     public async Task<ResponseModel<ItemDto>> GetAsync(Guid id)
@@ -129,7 +131,7 @@ public class ItemAppService(
             };
 
             logger.LogDebug("ItemAppService - GetAsync response: {@Response}", response);
-            logger.LogInformation("ItemAppService - DeleteAsync completed successfully.");
+            logger.LogInformation("ItemAppService - GetAsync completed successfully.");
             return response;
         }
         catch (UserFriendlyException)
@@ -138,10 +140,9 @@ public class ItemAppService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "ItemAppService - Internal server error in DeleteAsync.");
+            logger.LogError(ex, "ItemAppService - Internal server error in GetAsync.");
             throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
         }
-
     }
 
     public async Task<ResponseModel> UpdateAsync(Guid id, CreateUpdateItemDto input)

@@ -10,8 +10,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using RateLimit.EntityFrameworkCore;
+using RateLimit.ETOs;
+using RateLimit.Interfaces;
+using RateLimit.Middlewares;
 using RateLimit.MultiTenancy;
 using RateLimit.Options;
+using RateLimit.RabbitMQ;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
@@ -26,6 +30,7 @@ using Volo.Abp.Autofac;
 using Volo.Abp.Caching;
 using Volo.Abp.Caching.StackExchangeRedis;
 using Volo.Abp.DistributedLocking;
+using Volo.Abp.EventBus.RabbitMq;
 using Volo.Abp.Modularity;
 using Volo.Abp.Security.Claims;
 using Volo.Abp.Swashbuckle;
@@ -43,7 +48,9 @@ namespace RateLimit;
     typeof(RateLimitApplicationModule),
     typeof(RateLimitEntityFrameworkCoreModule),
     typeof(AbpAspNetCoreSerilogModule),
-    typeof(AbpSwashbuckleModule)
+    typeof(AbpSwashbuckleModule),
+    typeof(AbpEventBusRabbitMqModule),
+    typeof(RabbitMQModule)
 )]
 public class RateLimitHttpApiHostModule : AbpModule
 {

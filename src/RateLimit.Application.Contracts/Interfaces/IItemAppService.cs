@@ -14,5 +14,4 @@ public interface IItemAppService : IApplicationService
     Task<ResponseModel> UpdateAsync(Guid id, CreateUpdateItemDto input);
 
     Task<ResponseModel> DeleteAsync(Guid id);
-
 }

@@ -11,7 +11,7 @@ using Volo.Abp.Caching;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Timing;
 
-namespace RateLimit;
+namespace RateLimit.Middlewares;
 
 public class RateLimitMiddleware : IMiddleware, ITransientDependency
 {

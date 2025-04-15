@@ -38,7 +38,6 @@ public class RabbitMQModule : AbpModule
         });
 
         context.Services.AddTransient<IItemProducer, ItemProducer>();
-        context.Services.AddBackgroundWorker<ItemConsumer>();
     }
     public override void OnApplicationShutdown(ApplicationShutdownContext context)
     {

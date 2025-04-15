@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using RateLimit.Entities;
 using RateLimit.ETOs;
 using RateLimit.Interfaces;
@@ -186,5 +187,10 @@ public class ItemAppService(
             logger.LogError(ex, "ItemAppService - Internal server error in UpdateAsync.");
             throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
         }
+    }
+
+    public Task<ResponseModel> UploadFileAsync(IFormFile file)
+    {
+        throw new NotImplementedException();
     }
 }

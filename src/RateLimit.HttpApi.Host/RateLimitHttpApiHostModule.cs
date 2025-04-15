@@ -16,17 +16,20 @@ using RateLimit.Middlewares;
 using RateLimit.MultiTenancy;
 using RateLimit.Options;
 using RateLimit.RabbitMQ;
+using RateLimit.Services;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.Authentication.JwtBearer;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.AspNetCore.Mvc.UI.MultiTenancy;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
+using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Caching;
 using Volo.Abp.Caching.StackExchangeRedis;
 using Volo.Abp.DistributedLocking;
@@ -50,6 +53,7 @@ namespace RateLimit;
     typeof(AbpAspNetCoreSerilogModule),
     typeof(AbpSwashbuckleModule),
     typeof(AbpEventBusRabbitMqModule),
+    typeof(AbpBackgroundWorkersModule),
     typeof(RabbitMQModule)
 )]
 public class RateLimitHttpApiHostModule : AbpModule
@@ -209,7 +213,7 @@ public class RateLimitHttpApiHostModule : AbpModule
         });
     }
 
-    public override void OnApplicationInitialization(ApplicationInitializationContext context)
+    public override async Task OnApplicationInitializationAsync(ApplicationInitializationContext context)
     {
         var app = context.GetApplicationBuilder();
         var env = context.GetEnvironment();
@@ -225,6 +229,7 @@ public class RateLimitHttpApiHostModule : AbpModule
         app.UseRouting();
         app.UseCors();
         app.UseMiddleware<RateLimitMiddleware>();
+        await context.AddBackgroundWorkerAsync<ItemConsumer>();
         app.UseAuthentication();
 
         if (MultiTenancyConsts.IsEnabled)

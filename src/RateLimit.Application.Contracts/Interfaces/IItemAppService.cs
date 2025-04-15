@@ -1,4 +1,5 @@
-﻿using RateLimit.Interfaces.Dtos;
+﻿using Microsoft.AspNetCore.Http;
+using RateLimit.Interfaces.Dtos;
 using RateLimit.ResponseModels;
 using System;
 using System.Threading.Tasks;
@@ -14,4 +15,5 @@ public interface IItemAppService : IApplicationService
     Task<ResponseModel> UpdateAsync(Guid id, CreateUpdateItemDto input);
 
     Task<ResponseModel> DeleteAsync(Guid id);
+    Task<ResponseModel> UploadFileAsync(IFormFile file);
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RateLimit.Entities;
 using RateLimit.ETOs;
@@ -8,12 +9,14 @@ using RateLimit.MessageCodes;
 using RateLimit.ResponseModels;
 using RateLimit.Validators;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.EventBus.Distributed;
+using Volo.Abp.Guids;
 using Volo.Abp.ObjectMapping;
 
 namespace RateLimit.AppServices;
@@ -22,6 +25,8 @@ public class ItemAppService(
     IRepository<Item, Guid> itemRepository,
     ILogger<ItemAppService> logger,
     IObjectMapper objectMapper,
+    IConfiguration configuration,
+    IGuidGenerator guidGenerator,
     IDistributedEventBus eventBus) : ApplicationService, IItemAppService
 {
     public async Task<ResponseModel<CreateItemResponseDto>> CreateAsync(CreateUpdateItemDto input)
@@ -189,8 +194,65 @@ public class ItemAppService(
         }
     }
 
-    public Task<ResponseModel> UploadFileAsync(IFormFile file)
+    public async Task<ResponseModel> UploadFileAsync(IFormFile file)
     {
-        throw new NotImplementedException();
+        try
+        {
+            logger.LogInformation("ItemAppService - UploadFileAsync with File: {@file}", file);
+
+            var allowedExtensions = configuration.GetSection("FileUpload:AllowedTypes").Get<string[]>() ?? Array.Empty<string>();
+            var maxSize = configuration.GetValue<long>("FileUpload:MaxSize");
+
+            if (file == null || file.Length == 0)
+            {
+                throw new UserFriendlyException("No file uploaded.");
+            }
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+            {
+                throw new UserFriendlyException($"File type '{extension}' is not allowed.");
+            }
+
+            if (file.Length > maxSize)
+            {
+                throw new UserFriendlyException($"File size exceeds the maximum allowed size of 5MB.");
+            }
+
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            var uniqueFileName = $"{guidGenerator.Create()}{extension}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var response = new ResponseModel
+            {
+                Success = true,
+                Message = ItemMessageCodes.ItemUpdated
+            };
+
+            logger.LogDebug("ItemAppService - UploadFileAsync response: {@Response}", response);
+            logger.LogInformation("ItemAppService - UploadFileAsync completed successfully.");
+            return response;
+        }
+        catch (UserFriendlyException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "ItemAppService - Internal server error in UploadFileAsync.");
+            throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
+        }
     }
 }

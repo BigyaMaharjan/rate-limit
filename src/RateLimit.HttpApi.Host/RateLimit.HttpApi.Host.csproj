@@ -40,4 +40,14 @@
 		<None Remove="Logs\**" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="wwwroot\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Update="wwwroot\uploads\3a19a1d5-cb94-a53f-fcd7-6609697fcbbc.xlsx">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
+
 </Project>

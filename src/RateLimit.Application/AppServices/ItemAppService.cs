@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RateLimit.Entities;
@@ -9,6 +10,7 @@ using RateLimit.MessageCodes;
 using RateLimit.ResponseModels;
 using RateLimit.Validators;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,8 +28,7 @@ public class ItemAppService(
     ILogger<ItemAppService> logger,
     IObjectMapper objectMapper,
     IConfiguration configuration,
-    IGuidGenerator guidGenerator,
-    IDistributedEventBus eventBus) : ApplicationService, IItemAppService
+    IGuidGenerator guidGenerator) : ApplicationService, IItemAppService
 {
     public async Task<ResponseModel<CreateItemResponseDto>> CreateAsync(CreateUpdateItemDto input)
     {
@@ -255,4 +256,68 @@ public class ItemAppService(
             throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
         }
     }
+
+    [HttpGet]
+    public async Task<FileResult> DownloadFileAsync(string fileName)
+    {
+        try
+        {
+            logger.LogInformation("ItemAppService - DownloadFileAsync with fileName: {fileName}", fileName);
+
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                throw new UserFriendlyException("File not found.");
+            }
+
+            var memory = new MemoryStream();
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            {
+                await stream.CopyToAsync(memory);
+            }
+
+            memory.Position = 0;
+            var contentType = GetContentType(filePath);
+
+            logger.LogInformation("ItemAppService - DownloadFileAsync completed successfully.");
+            return new FileStreamResult(memory, contentType)
+            {
+                FileDownloadName = fileName
+            };
+        }
+        catch (UserFriendlyException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "ItemAppService - Internal server error in DownloadFileAsync.");
+            throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
+        }
+    }
+
+    private string GetContentType(string path)
+    {
+        var types = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        { ".pdf", "application/pdf" },
+        { ".doc", "application/msword" },
+        { ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+        { ".xls", "application/vnd.ms-excel" },
+        { ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        { ".png", "image/png" },
+        { ".jpg", "image/jpeg" },
+        { ".jpeg", "image/jpeg" },
+        { ".txt", "text/plain" },
+        { ".csv", "text/csv" },
+        { ".zip", "application/zip" },
+        { ".rar", "application/x-rar-compressed" }
+    };
+
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return types.TryGetValue(ext, out string contentType) ? contentType : "application/octet-stream";
+    }
+
 }

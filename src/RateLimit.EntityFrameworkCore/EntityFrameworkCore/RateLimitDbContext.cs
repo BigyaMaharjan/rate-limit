@@ -57,6 +57,7 @@ public class RateLimitDbContext :
     #endregion
 
     public DbSet<Item> Items { get; set; }
+    public DbSet<Template> Templates { get; set; }
     public RateLimitDbContext(DbContextOptions<RateLimitDbContext> options)
         : base(options)
     {

@@ -25,8 +25,4 @@
 		<PackageReference Include="Volo.Abp.TextTemplating.Scriban" Version="9.1.1" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="TextTemplating\" />
-	</ItemGroup>
-
 </Project>

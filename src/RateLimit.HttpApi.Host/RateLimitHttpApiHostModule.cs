@@ -236,7 +236,7 @@ public class RateLimitHttpApiHostModule : AbpModule
         app.UseStaticFiles();
         app.UseRouting();
         app.UseCors();
-        app.UseMiddleware<RateLimitMiddleware>();
+        //app.UseMiddleware<RateLimitMiddleware>();
         await context.AddBackgroundWorkerAsync<ItemConsumer>();
         app.UseAuthentication();
 

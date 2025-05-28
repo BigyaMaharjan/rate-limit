@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Polly;
 using RateLimit.Entities;
-using RateLimit.ETOs;
 using RateLimit.Interfaces;
 using RateLimit.Interfaces.Dtos;
 using RateLimit.MessageCodes;
@@ -16,10 +16,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Data;
 using Volo.Abp.Domain.Repositories;
-using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.Guids;
 using Volo.Abp.ObjectMapping;
+using Volo.Abp.Uow;
 
 namespace RateLimit.AppServices;
 
@@ -169,10 +170,28 @@ public class ItemAppService(
             }
 
             input = input with { Name = input.Name.Trim() };
+            //Concurrency Control
+            var retryPolicy = Policy
+                .Handle<AbpDbConcurrencyException>()
+                .WaitAndRetryAsync(retryCount: 3,
+                sleepDurationProvider: attempt => TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt)),
+                onRetry: (ex, delay) =>
+                {
+                    logger.LogWarning("Delay {RetryCount} due to concurrency exception: {Message}", delay, ex.Message);
+                });
 
-            var item = objectMapper.Map<CreateUpdateItemDto, Item>(input);
+            await retryPolicy.ExecuteAsync(async () =>
+            {
+                using (var uow = UnitOfWorkManager.Begin(requiresNew: true))
+                {
+                    var item = await itemRepository.GetAsync(id);
+                    objectMapper.Map(input, item);
+                    logger.LogInformation("ItemAppService - UpdateAsync with item: {@Input}", item);
+                    await itemRepository.UpdateAsync(item);
 
-            await itemRepository.UpdateAsync(item);
+                    await uow.SaveChangesAsync();
+                }
+            });
 
             var response = new ResponseModel
             {

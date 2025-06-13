@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Polly;
+using RateLimit.CacheKeys;
 using RateLimit.Entities;
 using RateLimit.Interfaces;
 using RateLimit.Interfaces.Dtos;
@@ -16,6 +17,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Caching;
 using Volo.Abp.Data;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Guids;
@@ -27,6 +29,7 @@ namespace RateLimit.AppServices;
 public class ItemAppService(
     IRepository<Item, Guid> itemRepository,
     ILogger<ItemAppService> logger,
+    IDistributedCache<ItemDto> cache,
     IObjectMapper objectMapper,
     IConfiguration configuration,
     IGuidGenerator guidGenerator) : ApplicationService, IItemAppService
@@ -120,22 +123,30 @@ public class ItemAppService(
         {
             logger.LogInformation("ItemAppService - GetAsync called with Id: {Id}", id);
 
-            var itemQueryable = await itemRepository.GetQueryableAsync();
-            var item = itemQueryable.Where(c => c.Id == id).FirstOrDefault();
+            var cacheKey = RateLimitCacheKey.ITEM_CACHE_KEY;
 
-            if (item == null)
-            {
-                logger.LogWarning("ItemAppService - GetAsync failed: {Message}", ItemMessageCodes.ItemNotFound);
-                throw new UserFriendlyException(ItemMessageCodes.ItemNotFound, "400");
-            }
+            var cachedItem = await cache.GetOrAddAsync(cacheKey,
+                async () =>
+                {
+                    logger.LogInformation("Cache miss for key: {CacheKey}", cacheKey);
+                    var itemQueryable = await itemRepository.GetQueryableAsync();
+                    var item = itemQueryable.FirstOrDefault(c => c.Id == id);
 
-            var itemDto = objectMapper.Map<Item, ItemDto>(item);
+                    if (item == null)
+                    {
+                        logger.LogWarning("ItemAppService - GetAsync failed: {Message}", ItemMessageCodes.ItemNotFound);
+                        throw new UserFriendlyException(ItemMessageCodes.ItemNotFound, "400");
+                    }
+
+                    return objectMapper.Map<Item, ItemDto>(item);
+                }
+            );
 
             var response = new ResponseModel<ItemDto>
             {
                 Success = true,
                 Message = ItemMessageCodes.ItemCreated,
-                Data = itemDto
+                Data = cachedItem
             };
 
             logger.LogDebug("ItemAppService - GetAsync response: {@Response}", response);

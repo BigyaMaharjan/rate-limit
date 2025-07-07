@@ -27,7 +27,7 @@ public class RateLimitTestBaseModule : AbpModule
         context.Services.AddAlwaysAllowAuthorization();
     }
 
-    public override void OnApplicationInitializationAsync(ApplicationInitializationContext context)
+    public override void OnApplicationInitialization(ApplicationInitializationContext context)
     {
         SeedTestData(context);
     }

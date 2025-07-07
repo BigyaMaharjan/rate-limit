@@ -145,7 +145,7 @@ public class ItemAppService(
             var response = new ResponseModel<ItemDto>
             {
                 Success = true,
-                Message = ItemMessageCodes.ItemCreated,
+                Message = ItemMessageCodes.ItemRetrieved,
                 Data = cachedItem
             };
 
@@ -159,11 +159,43 @@ public class ItemAppService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "ItemAppService - Internal server error in GetAsync.");
+            logger.LogError(ex, "ItemAppService - GetAsync: Internal server error in GetAsync.");
             throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
         }
     }
 
+    public async Task<ResponseModel<List<ItemDto>>> GetAllAsync()
+    {
+        try
+        {
+            logger.LogInformation("ItemAppService - GetAllAsync called }");
+
+            var items = await itemRepository.GetListAsync();
+            if (items == null || !items.Any())
+            {
+                logger.LogWarning("ItemAppService - GetAllAsync failed: {Message}", ItemMessageCodes.ItemNotFound);
+                throw new UserFriendlyException(ItemMessageCodes.ItemNotFound, "400");
+            }
+
+            var response = new ResponseModel<List<ItemDto>>
+            {
+                Success = true,
+                Message = ItemMessageCodes.ItemRetrieved,
+                Data = objectMapper.Map<List<Item>, List<ItemDto>>(items)
+            };
+
+            return response;
+        }
+        catch (UserFriendlyException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "ItemAppService - GetAllAsync: Internal server error in GetAsync.");
+            throw new UserFriendlyException(RateLimitDomainErrorCodes.InternalServerError, "500");
+        }
+    }
     public async Task<ResponseModel> UpdateAsync(Guid id, CreateUpdateItemDto input)
     {
         try
@@ -350,4 +382,5 @@ public class ItemAppService(
         return types.TryGetValue(ext, out string contentType) ? contentType : "application/octet-stream";
     }
 
+   
 }

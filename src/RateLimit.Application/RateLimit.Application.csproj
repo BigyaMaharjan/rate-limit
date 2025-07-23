@@ -1,25 +1,28 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\..\common.props" />
+	<Import Project="..\..\common.props" />
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <RootNamespace>RateLimit</RootNamespace>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<RootNamespace>RateLimit</RootNamespace>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\RateLimit.Domain\RateLimit.Domain.csproj" />
-    <ProjectReference Include="..\RateLimit.Application.Contracts\RateLimit.Application.Contracts.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\RateLimit.Domain\RateLimit.Domain.csproj" />
+		<ProjectReference Include="..\RateLimit.Application.Contracts\RateLimit.Application.Contracts.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Volo.Abp.Account.Application" Version="9.1.1" />
-    <PackageReference Include="Volo.Abp.Identity.Application" Version="9.1.1" />
-    <PackageReference Include="Volo.Abp.PermissionManagement.Application" Version="9.1.1" />
-    <PackageReference Include="Volo.Abp.TenantManagement.Application" Version="9.1.1" />
-    <PackageReference Include="Volo.Abp.FeatureManagement.Application" Version="9.1.1" />
-    <PackageReference Include="Volo.Abp.SettingManagement.Application" Version="9.1.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+		<PackageReference Include="Volo.Abp.BackgroundWorkers" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.Account.Application" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.Identity.Application" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.PermissionManagement.Application" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.TenantManagement.Application" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.FeatureManagement.Application" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.SettingManagement.Application" Version="9.1.1" />
+		<PackageReference Include="Volo.Abp.TextTemplating.Scriban" Version="9.1.1" />
+	</ItemGroup>
 
 </Project>

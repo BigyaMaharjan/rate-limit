@@ -10,22 +10,31 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using RateLimit.EntityFrameworkCore;
+using RateLimit.ETOs;
+using RateLimit.Interfaces;
+using RateLimit.Middlewares;
 using RateLimit.MultiTenancy;
 using RateLimit.Options;
+using RateLimit.RabbitMQ;
+using RateLimit.Services;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.Authentication.JwtBearer;
 using Volo.Abp.AspNetCore.Mvc;
+using Volo.Abp.AspNetCore.Mvc.Libs;
 using Volo.Abp.AspNetCore.Mvc.UI.MultiTenancy;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
+using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Caching;
 using Volo.Abp.Caching.StackExchangeRedis;
 using Volo.Abp.DistributedLocking;
+using Volo.Abp.EventBus.RabbitMq;
 using Volo.Abp.Modularity;
 using Volo.Abp.Security.Claims;
 using Volo.Abp.Swashbuckle;
@@ -43,7 +52,10 @@ namespace RateLimit;
     typeof(RateLimitApplicationModule),
     typeof(RateLimitEntityFrameworkCoreModule),
     typeof(AbpAspNetCoreSerilogModule),
-    typeof(AbpSwashbuckleModule)
+    typeof(AbpSwashbuckleModule),
+    typeof(AbpEventBusRabbitMqModule),
+    typeof(AbpBackgroundWorkersModule),
+    typeof(RabbitMQModule)
 )]
 public class RateLimitHttpApiHostModule : AbpModule
 {
@@ -61,21 +73,38 @@ public class RateLimitHttpApiHostModule : AbpModule
         ConfigureCors(context, configuration);
         ConfigureSwaggerServices(context, configuration);
         ConfigureRateLimit(context, configuration);
+
+        Configure<AbpMvcLibsOptions>(options =>
+        {
+            options.CheckLibs = false;
+        });
+
     }
 
     private void ConfigureRateLimit(ServiceConfigurationContext context, IConfiguration configuration)
     {
-        Configure<RateLimitOptions>(options =>
-        {
-            context.Services.GetConfiguration().GetSection("RateLimit").Bind(options);
-            if (options.RequestsPerMinute <= 0)
-            {
-                throw new AbpInitializationException("RequestsPerMinute must be greater than 0 in RateLimit configuration.");
-            }
-        });
+        // Configure RateLimitOptions from appsettings.json
+        Configure<RateLimitOptions>(configuration.GetSection("RateLimit"));
 
+        // Configure Redis services
+        var redisConfig = configuration.GetSection("Redis");
+        if (redisConfig["IsEnabled"]?.ToLower() == "true")
+        {
+            var redisConnectionString = redisConfig["Configuration"] ?? "127.0.0.1:247";
+
+            // Register IConnectionMultiplexer as a singleton
+            context.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+                ConnectionMultiplexer.Connect(redisConnectionString));
+
+            // Configure IDistributedCache to use Redis
+            context.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+            });
+        }
+
+        // Register the middleware
         context.Services.AddTransient<RateLimitMiddleware>();
-        context.Services.AddMemoryCache();
     }
 
     private void ConfigureCache(IConfiguration configuration)
@@ -191,7 +220,7 @@ public class RateLimitHttpApiHostModule : AbpModule
         });
     }
 
-    public override void OnApplicationInitialization(ApplicationInitializationContext context)
+    public override async Task OnApplicationInitializationAsync(ApplicationInitializationContext context)
     {
         var app = context.GetApplicationBuilder();
         var env = context.GetEnvironment();
@@ -204,9 +233,11 @@ public class RateLimitHttpApiHostModule : AbpModule
         app.UseAbpRequestLocalization();
         app.UseCorrelationId();
         app.MapAbpStaticAssets();
+        app.UseStaticFiles();
         app.UseRouting();
         app.UseCors();
-        app.UseMiddleware<RateLimitMiddleware>();
+        //app.UseMiddleware<RateLimitMiddleware>();
+        await context.AddBackgroundWorkerAsync<ItemConsumer>();
         app.UseAuthentication();
 
         if (MultiTenancyConsts.IsEnabled)

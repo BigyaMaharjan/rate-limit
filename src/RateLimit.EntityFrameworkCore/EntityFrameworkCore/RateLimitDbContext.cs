@@ -57,6 +57,7 @@ public class RateLimitDbContext :
     #endregion
 
     public DbSet<Item> Items { get; set; }
+    public DbSet<Template> Templates { get; set; }
     public RateLimitDbContext(DbContextOptions<RateLimitDbContext> options)
         : base(options)
     {
@@ -91,6 +92,31 @@ public class RateLimitDbContext :
              .HasMaxLength(ItemConsts.MaxLength.Name);
 
             b.Property(c => c.Price)
+             .IsRequired();
+        });
+
+        builder.Entity<Template>(b =>
+        {
+            b.ToTable("Templates");
+
+            b.ConfigureByConvention();
+
+            b.Property(c => c.SystemName)
+             .IsRequired()
+             .HasMaxLength(TemplateConsts.MaxLength.SystemName);
+
+            b.Property(c => c.DisplayName)
+             .IsRequired()
+             .HasMaxLength(TemplateConsts.MaxLength.DisplayName);
+
+            b.Property(c => c.Templates)
+             .IsRequired()
+             .HasColumnType("text");
+
+            b.Property(c => c.Description)
+             .HasMaxLength(TemplateConsts.MaxLength.Description);
+
+            b.Property(c => c.IsActive)
              .IsRequired();
         });
 
